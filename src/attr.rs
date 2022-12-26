@@ -29,6 +29,7 @@ const NL80211_ATTR_WIPHY_RETRY_LONG : u16 = 62;
 const NL80211_ATTR_WIPHY_FRAG_THRESHOLD : u16 = 63;
 const NL80211_ATTR_WIPHY_RTS_THRESHOLD : u16 = 64;
 const NL80211_ATTR_4ADDR: u16 = 83;
+const NL80211_ATTR_WIPHY_COVERAGE_CLASS: u16 = 89;
 const NL80211_ATTR_WIPHY_TX_POWER_LEVEL: u16 = 98;
 const NL80211_ATTR_WDEV: u16 = 153;
 const NL80211_ATTR_CHANNEL_WIDTH: u16 = 159;
@@ -62,6 +63,7 @@ pub enum Nl80211Attr {
     ChannelWidth(Nl80211ChannelWidth),
     CenterFreq1(u32),
     CenterFreq2(u32),
+    WiPhyCoverageClass(u8),
     WiPhyTxPowerLevel(u32),
     Ssid(String),
     TransmitQueueStats(Vec<Nl80211TransmitQueueStat>),
@@ -88,7 +90,10 @@ impl Nla for Nl80211Attr {
             Self::Wdev(_) => 8,
             Self::IfName(ref s) | Self::Ssid(ref s) | Self::WiPhyName(ref s) => s.len() + 1,
             Self::Mac(_) => ETH_ALEN,
-            Self::Use4Addr(_) | Self::WiPhyRetryShort(_) | Self::WiPhyRetryLong(_) => 1,
+            Self::Use4Addr(_)
+	    | Self::WiPhyRetryShort(_)
+	    | Self::WiPhyRetryLong(_)
+	    | Self::WiPhyCoverageClass(_) => 1,
             Self::TransmitQueueStats(ref nlas) => nlas.as_slice().buffer_len(),
             Self::MloLinks(ref links) => links.as_slice().buffer_len(),
             Self::Other(attr) => attr.value_len(),
@@ -116,6 +121,7 @@ impl Nla for Nl80211Attr {
             Self::ChannelWidth(_) => NL80211_ATTR_CHANNEL_WIDTH,
             Self::CenterFreq1(_) => NL80211_ATTR_CENTER_FREQ1,
             Self::CenterFreq2(_) => NL80211_ATTR_CENTER_FREQ2,
+            Self::WiPhyCoverageClass(_) => NL80211_ATTR_WIPHY_COVERAGE_CLASS,
             Self::WiPhyTxPowerLevel(_) => NL80211_ATTR_WIPHY_TX_POWER_LEVEL,
             Self::Ssid(_) => NL80211_ATTR_SSID,
             Self::TransmitQueueStats(_) => NL80211_ATTR_TXQ_STATS,
@@ -143,7 +149,9 @@ impl Nla for Nl80211Attr {
                 buffer[..s.len()].copy_from_slice(s.as_bytes());
                 buffer[s.len()] = 0;
             }
-	    Self::WiPhyRetryShort(d) | Self::WiPhyRetryLong(d) => buffer[0] = *d,
+            Self::WiPhyRetryShort(d)
+            | Self::WiPhyRetryLong(d)
+	    | Self::WiPhyCoverageClass(d) => buffer[0] = *d,
             Self::Use4Addr(d) => buffer[0] = *d as u8,
             Self::WiPhyChannelType(d) => {
                 NativeEndian::write_u32(buffer, (*d).into())
@@ -285,6 +293,13 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for Nl80211Attr {
                     payload
                 );
                 Self::CenterFreq2(parse_u32(payload).context(err_msg)?)
+            }
+            NL80211_ATTR_WIPHY_COVERAGE_CLASS => {
+                let err_msg = format!(
+                    "Invalid NL80211_ATTR_WIPHY_COVERAGE_CLASS value {:?}",
+                    payload
+                );
+                Self::WiPhyCoverageClass(parse_u8(payload).context(err_msg)?)
             }
             NL80211_ATTR_WIPHY_TX_POWER_LEVEL => {
                 let err_msg = format!(
