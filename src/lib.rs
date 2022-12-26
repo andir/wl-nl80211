@@ -6,6 +6,7 @@ mod connection;
 mod error;
 mod handle;
 mod iface;
+mod phy;
 mod macros;
 mod message;
 mod stats;
@@ -19,6 +20,9 @@ pub use error::Nl80211Error;
 pub use handle::Nl80211Handle;
 pub use iface::{
     Nl80211InterfaceGetRequest, Nl80211InterfaceHandle, Nl80211InterfaceType,
+};
+pub use phy::{
+    Nl80211PhyGetRequest, Nl80211PhyHandle
 };
 pub use message::{Nl80211Cmd, Nl80211Message};
 pub use stats::Nl80211TransmitQueueStat;

@@ -55,6 +55,13 @@ impl Nl80211Message {
             nlas: vec![],
         }
     }
+
+    pub fn new_phy_get() -> Self {
+	Nl80211Message {
+	    cmd: Nl80211Cmd::PhyGet,
+	    nlas: vec![],
+	}
+    }
 }
 
 impl Emitable for Nl80211Message {
@@ -88,6 +95,10 @@ impl ParseableParametrized<[u8], GenlHeader> for Nl80211Message {
                 cmd: Nl80211Cmd::InterfaceNew,
                 nlas: parse_nlas(buffer)?,
             },
+	    NL80211_CMD_GET_PHY => Self {
+		cmd: Nl80211Cmd::PhyGet,
+		nlas: parse_nlas(buffer)?,
+	    },
             cmd => {
                 return Err(DecodeError::from(format!(
                     "Unsupported nl80211 reply command: {}",
