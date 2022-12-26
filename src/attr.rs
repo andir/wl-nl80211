@@ -32,6 +32,7 @@ const NL80211_ATTR_WIPHY_RTS_THRESHOLD : u16 = 64;
 const NL80211_ATTR_4ADDR: u16 = 83;
 const NL80211_ATTR_WIPHY_COVERAGE_CLASS: u16 = 89;
 const NL80211_ATTR_WIPHY_TX_POWER_LEVEL: u16 = 98;
+const NL80211_ATTR_MAX_NUM_SCHED_SCAN_SSIDS : u16 = 123;
 const NL80211_ATTR_WDEV: u16 = 153;
 const NL80211_ATTR_CHANNEL_WIDTH: u16 = 159;
 const NL80211_ATTR_CENTER_FREQ1: u16 = 160;
@@ -51,7 +52,6 @@ pub enum Nl80211Attr {
     IfName(String),
     IfType(Nl80211InterfaceType),
     Mac([u8; ETH_ALEN]),
-    Wdev(u64),
     MaxNumScanSSIDs(u8),
     Generation(u32),
     WiPhyRetryShort(u8),
@@ -62,6 +62,8 @@ pub enum Nl80211Attr {
     WiPhyFreq(u32),
     WiPhyFreqOffset(u32),
     WiPhyChannelType(Nl80211WiPhyChannelType),
+    MaxNumSchedScanSSIDs(u8),
+    Wdev(u64),
     ChannelWidth(Nl80211ChannelWidth),
     CenterFreq1(u32),
     CenterFreq2(u32),
@@ -96,7 +98,8 @@ impl Nla for Nl80211Attr {
             | Self::WiPhyRetryShort(_)
             | Self::WiPhyRetryLong(_)
             | Self::WiPhyCoverageClass(_)
-	    | Self::MaxNumScanSSIDs(_) => 1,
+	    | Self::MaxNumScanSSIDs(_)
+	    | Self::MaxNumSchedScanSSIDs(_) => 1,
             Self::TransmitQueueStats(ref nlas) => nlas.as_slice().buffer_len(),
             Self::MloLinks(ref links) => links.as_slice().buffer_len(),
             Self::Other(attr) => attr.value_len(),
@@ -111,7 +114,6 @@ impl Nla for Nl80211Attr {
             Self::IfName(_) => NL80211_ATTR_IFNAME,
             Self::IfType(_) => NL80211_ATTR_IFTYPE,
             Self::Mac(_) => NL80211_ATTR_MAC,
-            Self::Wdev(_) => NL80211_ATTR_WDEV,
             Self::MaxNumScanSSIDs(_) => NL80211_ATTR_MAX_NUM_SCAN_SSIDS,
             Self::Generation(_) => NL80211_ATTR_GENERATION,
 	    Self::WiPhyRetryShort(_) => NL80211_ATTR_WIPHY_RETRY_SHORT,
@@ -122,6 +124,8 @@ impl Nla for Nl80211Attr {
             Self::WiPhyFreq(_) => NL80211_ATTR_WIPHY_FREQ,
             Self::WiPhyFreqOffset(_) => NL80211_ATTR_WIPHY_FREQ_OFFSET,
             Self::WiPhyChannelType(_) => NL80211_ATTR_WIPHY_CHANNEL_TYPE,
+	    Self::MaxNumSchedScanSSIDs(_) => NL80211_ATTR_MAX_NUM_SCHED_SCAN_SSIDS,
+            Self::Wdev(_) => NL80211_ATTR_WDEV,
             Self::ChannelWidth(_) => NL80211_ATTR_CHANNEL_WIDTH,
             Self::CenterFreq1(_) => NL80211_ATTR_CENTER_FREQ1,
             Self::CenterFreq2(_) => NL80211_ATTR_CENTER_FREQ2,
@@ -156,7 +160,8 @@ impl Nla for Nl80211Attr {
             Self::WiPhyRetryShort(d)
             | Self::WiPhyRetryLong(d)
             | Self::WiPhyCoverageClass(d)
-	    | Self::MaxNumScanSSIDs(d) => buffer[0] = *d,
+            | Self::MaxNumScanSSIDs(d)
+	    | Self::MaxNumSchedScanSSIDs(d) => buffer[0] = *d,
             Self::Use4Addr(d) => buffer[0] = *d as u8,
             Self::WiPhyChannelType(d) => {
                 NativeEndian::write_u32(buffer, (*d).into())
@@ -283,6 +288,15 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for Nl80211Attr {
                 );
                 Self::WiPhyChannelType(
                     parse_u32(payload).context(err_msg)?.into(),
+                )
+            }
+            NL80211_ATTR_MAX_NUM_SCHED_SCAN_SSIDS => {
+                let err_msg = format!(
+                    "Invalid NL80211_ATTR_MAX_NUM_SCHED_SCAN_SSIDS value {:?}",
+                    payload
+                );
+                Self::MaxNumSchedScanSSIDs(
+                    parse_u8(payload).context(err_msg)?.into(),
                 )
             }
             NL80211_ATTR_CHANNEL_WIDTH => {
