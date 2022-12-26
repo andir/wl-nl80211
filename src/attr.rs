@@ -26,6 +26,8 @@ const NL80211_ATTR_GENERATION: u16 = 46;
 const NL80211_ATTR_SSID: u16 = 52;
 const NL80211_ATTR_WIPHY_RETRY_SHORT : u16 = 61;
 const NL80211_ATTR_WIPHY_RETRY_LONG : u16 = 62;
+const NL80211_ATTR_WIPHY_FRAG_THRESHOLD : u16 = 63;
+const NL80211_ATTR_WIPHY_RTS_THRESHOLD : u16 = 64;
 const NL80211_ATTR_4ADDR: u16 = 83;
 const NL80211_ATTR_WIPHY_TX_POWER_LEVEL: u16 = 98;
 const NL80211_ATTR_WDEV: u16 = 153;
@@ -51,6 +53,8 @@ pub enum Nl80211Attr {
     Generation(u32),
     WiPhyRetryShort(u8),
     WiPhyRetryLong(u8),
+    WiPhyFragThreshold(u32),
+    WiPhyRTSThreshold(u32),
     Use4Addr(bool),
     WiPhyFreq(u32),
     WiPhyFreqOffset(u32),
@@ -78,7 +82,9 @@ impl Nla for Nl80211Attr {
             | Self::CenterFreq1(_)
             | Self::CenterFreq2(_)
             | Self::WiPhyTxPowerLevel(_)
-            | Self::ChannelWidth(_) => 4,
+            | Self::ChannelWidth(_)
+            | Self::WiPhyFragThreshold(_)
+            | Self::WiPhyRTSThreshold(_) => 4,
             Self::Wdev(_) => 8,
             Self::IfName(ref s) | Self::Ssid(ref s) | Self::WiPhyName(ref s) => s.len() + 1,
             Self::Mac(_) => ETH_ALEN,
@@ -101,6 +107,8 @@ impl Nla for Nl80211Attr {
             Self::Generation(_) => NL80211_ATTR_GENERATION,
 	    Self::WiPhyRetryShort(_) => NL80211_ATTR_WIPHY_RETRY_SHORT,
 	    Self::WiPhyRetryLong(_) => NL80211_ATTR_WIPHY_RETRY_LONG,
+	    Self::WiPhyFragThreshold(_) => NL80211_ATTR_WIPHY_FRAG_THRESHOLD,
+	    Self::WiPhyRTSThreshold(_) => NL80211_ATTR_WIPHY_RTS_THRESHOLD,
             Self::Use4Addr(_) => NL80211_ATTR_4ADDR,
             Self::WiPhyFreq(_) => NL80211_ATTR_WIPHY_FREQ,
             Self::WiPhyFreqOffset(_) => NL80211_ATTR_WIPHY_FREQ_OFFSET,
@@ -125,7 +133,9 @@ impl Nla for Nl80211Attr {
             | Self::WiPhyFreqOffset(d)
             | Self::CenterFreq1(d)
             | Self::CenterFreq2(d)
-            | Self::WiPhyTxPowerLevel(d) => NativeEndian::write_u32(buffer, *d),
+            | Self::WiPhyTxPowerLevel(d)
+            | Self::WiPhyFragThreshold(d)
+            | Self::WiPhyRTSThreshold(d) => NativeEndian::write_u32(buffer, *d),
             Self::Wdev(d) => NativeEndian::write_u64(buffer, *d),
             Self::IfType(d) => NativeEndian::write_u32(buffer, (*d).into()),
             Self::Mac(ref s) => buffer.copy_from_slice(s),
@@ -211,7 +221,22 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for Nl80211Attr {
                     payload
                 );
                 Self::WiPhyRetryLong(parse_u8(payload).context(err_msg)?)
-	    }
+            }
+            NL80211_ATTR_WIPHY_FRAG_THRESHOLD => {
+                let err_msg = format!(
+                    "Invalid NL80211_ATTR_WIPHY_FRAG_THRESHOLD value {:?}",
+                    payload
+                );
+                Self::WiPhyFragThreshold(parse_u32(payload).context(err_msg)?)
+            }
+            NL80211_ATTR_WIPHY_RTS_THRESHOLD => {
+                let err_msg = format!(
+                    "Invalid NL80211_ATTR_WIPHY_RTS_THRESHOLD value {:?}",
+                    payload
+                );
+                Self::WiPhyRTSThreshold(parse_u32(payload).context(err_msg)?)
+            }
+
             NL80211_ATTR_4ADDR => {
                 let err_msg =
                     format!("Invalid NL80211_ATTR_4ADDR value {:?}", payload);
