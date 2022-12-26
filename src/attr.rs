@@ -15,6 +15,7 @@ use crate::{
 };
 
 const NL80211_ATTR_WIPHY: u16 = 1;
+const NL80211_ATTR_WIPHY_NAME: u16 = 2;
 const NL80211_ATTR_IFINDEX: u16 = 3;
 const NL80211_ATTR_IFNAME: u16 = 4;
 const NL80211_ATTR_IFTYPE: u16 = 5;
@@ -39,6 +40,7 @@ const ETH_ALEN: usize = 6;
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Nl80211Attr {
     WiPhy(u32),
+    WiPhyName(String),
     IfIndex(u32),
     IfName(String),
     IfType(Nl80211InterfaceType),
@@ -74,7 +76,9 @@ impl Nla for Nl80211Attr {
             | Self::WiPhyTxPowerLevel(_)
             | Self::ChannelWidth(_) => 4,
             Self::Wdev(_) => 8,
-            Self::IfName(ref s) | Self::Ssid(ref s) => s.len() + 1,
+            Self::IfName(ref s)
+            | Self::Ssid(ref s)
+            | Self::WiPhyName(ref s) => s.len() + 1,
             Self::Mac(_) => ETH_ALEN,
             Self::Use4Addr(_) => 1,
             Self::TransmitQueueStats(ref nlas) => nlas.as_slice().buffer_len(),
@@ -86,6 +90,7 @@ impl Nla for Nl80211Attr {
     fn kind(&self) -> u16 {
         match self {
             Self::WiPhy(_) => NL80211_ATTR_WIPHY,
+            Self::WiPhyName(_) => NL80211_ATTR_WIPHY_NAME,
             Self::IfIndex(_) => NL80211_ATTR_IFINDEX,
             Self::IfName(_) => NL80211_ATTR_IFNAME,
             Self::IfType(_) => NL80211_ATTR_IFTYPE,
@@ -120,7 +125,9 @@ impl Nla for Nl80211Attr {
             Self::Wdev(d) => NativeEndian::write_u64(buffer, *d),
             Self::IfType(d) => NativeEndian::write_u32(buffer, (*d).into()),
             Self::Mac(ref s) => buffer.copy_from_slice(s),
-            Self::IfName(ref s) | Self::Ssid(ref s) => {
+            Self::IfName(ref s)
+            | Self::Ssid(ref s)
+            | Self::WiPhyName(ref s) => {
                 buffer[..s.len()].copy_from_slice(s.as_bytes());
                 buffer[s.len()] = 0;
             }
@@ -151,6 +158,13 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for Nl80211Attr {
                 let err_msg =
                     format!("Invalid NL80211_ATTR_WIPHY value {:?}", payload);
                 Self::WiPhy(parse_u32(payload).context(err_msg)?)
+            }
+            NL80211_ATTR_WIPHY_NAME => {
+                let err_msg = format!(
+                    "Invalid NL80211_ATTR_WIPHY_NAME value {:?}",
+                    payload
+                );
+                Self::WiPhyName(parse_string(payload).context(err_msg)?)
             }
             NL80211_ATTR_IFNAME => {
                 let err_msg =

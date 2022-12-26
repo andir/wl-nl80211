@@ -7,12 +7,13 @@ use netlink_packet_utils::{
 };
 
 use crate::attr::Nl80211Attr;
-
+const NL80211_CMD_GET_WIPHY: u8 = 1;
 const NL80211_CMD_GET_INTERFACE: u8 = 5;
 const NL80211_CMD_NEW_INTERFACE: u8 = 7;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Nl80211Cmd {
+    PhyGet,
     InterfaceGet,
     InterfaceNew,
 }
@@ -20,6 +21,7 @@ pub enum Nl80211Cmd {
 impl From<Nl80211Cmd> for u8 {
     fn from(cmd: Nl80211Cmd) -> Self {
         match cmd {
+	    Nl80211Cmd::PhyGet => NL80211_CMD_GET_WIPHY,
             Nl80211Cmd::InterfaceGet => NL80211_CMD_GET_INTERFACE,
             Nl80211Cmd::InterfaceNew => NL80211_CMD_NEW_INTERFACE,
         }
