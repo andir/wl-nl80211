@@ -35,6 +35,8 @@ const NL80211_ATTR_4ADDR: u16 = 83;
 const NL80211_ATTR_WIPHY_COVERAGE_CLASS: u16 = 89;
 const NL80211_ATTR_WIPHY_TX_POWER_LEVEL: u16 = 98;
 const NL80211_ATTR_MAX_NUM_SCHED_SCAN_SSIDS : u16 = 123;
+const NL80211_ATTR_MAX_SCHED_SCAN_IE_LEN : u16 = 124;
+const NL80211_ATTR_MAX_MATCH_SETS : u16 = 133;
 const NL80211_ATTR_WDEV: u16 = 153;
 const NL80211_ATTR_CHANNEL_WIDTH: u16 = 159;
 const NL80211_ATTR_CENTER_FREQ1: u16 = 160;
@@ -66,6 +68,8 @@ pub enum Nl80211Attr {
     WiPhyFreqOffset(u32),
     WiPhyChannelType(Nl80211WiPhyChannelType),
     MaxNumSchedScanSSIDs(u8),
+    MaxSchedScanIELen(u16),
+    MaxMatchSets(u8),
     Wdev(u64),
     ChannelWidth(Nl80211ChannelWidth),
     CenterFreq1(u32),
@@ -102,8 +106,10 @@ impl Nla for Nl80211Attr {
             | Self::WiPhyRetryLong(_)
             | Self::WiPhyCoverageClass(_)
             | Self::MaxNumScanSSIDs(_)
-            | Self::MaxNumSchedScanSSIDs(_) => 1,
-            Self::MaxScanIELen(_) => 2,
+	    | Self::MaxNumSchedScanSSIDs(_)
+	    | Self::MaxMatchSets(_) => 1,
+            Self::MaxScanIELen(_)
+	    | Self::MaxSchedScanIELen(_) => 2,
             Self::TransmitQueueStats(ref nlas) => nlas.as_slice().buffer_len(),
             Self::MloLinks(ref links) => links.as_slice().buffer_len(),
             Self::Other(attr) => attr.value_len(),
@@ -130,6 +136,8 @@ impl Nla for Nl80211Attr {
             Self::WiPhyFreqOffset(_) => NL80211_ATTR_WIPHY_FREQ_OFFSET,
             Self::WiPhyChannelType(_) => NL80211_ATTR_WIPHY_CHANNEL_TYPE,
 	    Self::MaxNumSchedScanSSIDs(_) => NL80211_ATTR_MAX_NUM_SCHED_SCAN_SSIDS,
+	    Self::MaxSchedScanIELen(_) => NL80211_ATTR_MAX_SCHED_SCAN_IE_LEN,
+	    Self::MaxMatchSets(_) => NL80211_ATTR_MAX_MATCH_SETS,
             Self::Wdev(_) => NL80211_ATTR_WDEV,
             Self::ChannelWidth(_) => NL80211_ATTR_CHANNEL_WIDTH,
             Self::CenterFreq1(_) => NL80211_ATTR_CENTER_FREQ1,
@@ -166,10 +174,11 @@ impl Nla for Nl80211Attr {
             | Self::WiPhyRetryLong(d)
             | Self::WiPhyCoverageClass(d)
             | Self::MaxNumScanSSIDs(d)
-            | Self::MaxNumSchedScanSSIDs(d) => buffer[0] = *d,
-	    Self::MaxScanIELen(d) => {
-		NativeEndian::write_u16(buffer, (*d).into())
-	    }
+            | Self::MaxNumSchedScanSSIDs(d)
+            | Self::MaxMatchSets(d) => buffer[0] = *d,
+            Self::MaxScanIELen(d) | Self::MaxSchedScanIELen(d) => {
+                NativeEndian::write_u16(buffer, (*d).into())
+            }
             Self::Use4Addr(d) => buffer[0] = *d as u8,
             Self::WiPhyChannelType(d) => {
                 NativeEndian::write_u32(buffer, (*d).into())
@@ -316,6 +325,24 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for Nl80211Attr {
                     parse_u8(payload).context(err_msg)?.into(),
                 )
             }
+            NL80211_ATTR_MAX_SCHED_SCAN_IE_LEN => {
+                let err_msg = format!(
+                    "Invalid NL80211_ATTR_MAX_SCHED_SCAN_IE_LEN value {:?}",
+                    payload
+                );
+                Self::MaxSchedScanIELen(
+                    parse_u16(payload).context(err_msg)?.into(),
+                )
+            }
+	    NL80211_ATTR_MAX_MATCH_SETS => {
+                let err_msg = format!(
+                    "Invalid NL80211_ATTR_MAX_MATCH_SETS value {:?}",
+                    payload
+                );
+                Self::MaxMatchSets(
+                    parse_u8(payload).context(err_msg)?.into(),
+                )
+	    },
             NL80211_ATTR_CHANNEL_WIDTH => {
                 let err_msg = format!(
                     "Invalid NL80211_ATTR_CHANNEL_WIDTH value {:?}",
