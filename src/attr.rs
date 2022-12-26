@@ -22,6 +22,7 @@ const NL80211_ATTR_IFTYPE: u16 = 5;
 const NL80211_ATTR_MAC: u16 = 6;
 const NL80211_ATTR_WIPHY_FREQ: u16 = 38;
 const NL80211_ATTR_WIPHY_CHANNEL_TYPE: u16 = 39;
+const NL80211_ATTR_MAX_NUM_SCAN_SSIDS: u16 = 43;
 const NL80211_ATTR_GENERATION: u16 = 46;
 const NL80211_ATTR_SSID: u16 = 52;
 const NL80211_ATTR_WIPHY_RETRY_SHORT : u16 = 61;
@@ -51,6 +52,7 @@ pub enum Nl80211Attr {
     IfType(Nl80211InterfaceType),
     Mac([u8; ETH_ALEN]),
     Wdev(u64),
+    MaxNumScanSSIDs(u8),
     Generation(u32),
     WiPhyRetryShort(u8),
     WiPhyRetryLong(u8),
@@ -91,9 +93,10 @@ impl Nla for Nl80211Attr {
             Self::IfName(ref s) | Self::Ssid(ref s) | Self::WiPhyName(ref s) => s.len() + 1,
             Self::Mac(_) => ETH_ALEN,
             Self::Use4Addr(_)
-	    | Self::WiPhyRetryShort(_)
-	    | Self::WiPhyRetryLong(_)
-	    | Self::WiPhyCoverageClass(_) => 1,
+            | Self::WiPhyRetryShort(_)
+            | Self::WiPhyRetryLong(_)
+            | Self::WiPhyCoverageClass(_)
+	    | Self::MaxNumScanSSIDs(_) => 1,
             Self::TransmitQueueStats(ref nlas) => nlas.as_slice().buffer_len(),
             Self::MloLinks(ref links) => links.as_slice().buffer_len(),
             Self::Other(attr) => attr.value_len(),
@@ -109,6 +112,7 @@ impl Nla for Nl80211Attr {
             Self::IfType(_) => NL80211_ATTR_IFTYPE,
             Self::Mac(_) => NL80211_ATTR_MAC,
             Self::Wdev(_) => NL80211_ATTR_WDEV,
+            Self::MaxNumScanSSIDs(_) => NL80211_ATTR_MAX_NUM_SCAN_SSIDS,
             Self::Generation(_) => NL80211_ATTR_GENERATION,
 	    Self::WiPhyRetryShort(_) => NL80211_ATTR_WIPHY_RETRY_SHORT,
 	    Self::WiPhyRetryLong(_) => NL80211_ATTR_WIPHY_RETRY_LONG,
@@ -151,7 +155,8 @@ impl Nla for Nl80211Attr {
             }
             Self::WiPhyRetryShort(d)
             | Self::WiPhyRetryLong(d)
-	    | Self::WiPhyCoverageClass(d) => buffer[0] = *d,
+            | Self::WiPhyCoverageClass(d)
+	    | Self::MaxNumScanSSIDs(d) => buffer[0] = *d,
             Self::Use4Addr(d) => buffer[0] = *d as u8,
             Self::WiPhyChannelType(d) => {
                 NativeEndian::write_u32(buffer, (*d).into())
@@ -211,6 +216,13 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for Nl80211Attr {
                 )
                 .into());
             }),
+            NL80211_ATTR_MAX_NUM_SCAN_SSIDS => {
+                let err_msg = format!(
+                    "Invalid NL80211_ATTR_NUM_SCAN_SSIDS value {:?}",
+                    payload
+                );
+                Self::MaxNumScanSSIDs(parse_u8(payload).context(err_msg)?)
+            }
             NL80211_ATTR_GENERATION => {
                 let err_msg = format!(
                     "Invalid NL80211_ATTR_GENERATION value {:?}",
