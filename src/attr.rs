@@ -24,6 +24,7 @@ const NL80211_ATTR_WIPHY_FREQ: u16 = 38;
 const NL80211_ATTR_WIPHY_CHANNEL_TYPE: u16 = 39;
 const NL80211_ATTR_GENERATION: u16 = 46;
 const NL80211_ATTR_SSID: u16 = 52;
+const NL80211_ATTR_WIPHY_RETRY_SHORT : u16 = 61;
 const NL80211_ATTR_4ADDR: u16 = 83;
 const NL80211_ATTR_WIPHY_TX_POWER_LEVEL: u16 = 98;
 const NL80211_ATTR_WDEV: u16 = 153;
@@ -47,6 +48,7 @@ pub enum Nl80211Attr {
     Mac([u8; ETH_ALEN]),
     Wdev(u64),
     Generation(u32),
+    WiPhyRetryShort(u8),
     Use4Addr(bool),
     WiPhyFreq(u32),
     WiPhyFreqOffset(u32),
@@ -78,7 +80,7 @@ impl Nla for Nl80211Attr {
             Self::Wdev(_) => 8,
             Self::IfName(ref s) | Self::Ssid(ref s) | Self::WiPhyName(ref s) => s.len() + 1,
             Self::Mac(_) => ETH_ALEN,
-            Self::Use4Addr(_) => 1,
+            Self::Use4Addr(_) | Self::WiPhyRetryShort(_) => 1,
             Self::TransmitQueueStats(ref nlas) => nlas.as_slice().buffer_len(),
             Self::MloLinks(ref links) => links.as_slice().buffer_len(),
             Self::Other(attr) => attr.value_len(),
@@ -95,6 +97,7 @@ impl Nla for Nl80211Attr {
             Self::Mac(_) => NL80211_ATTR_MAC,
             Self::Wdev(_) => NL80211_ATTR_WDEV,
             Self::Generation(_) => NL80211_ATTR_GENERATION,
+	    Self::WiPhyRetryShort(_) => NL80211_ATTR_WIPHY_RETRY_SHORT,
             Self::Use4Addr(_) => NL80211_ATTR_4ADDR,
             Self::WiPhyFreq(_) => NL80211_ATTR_WIPHY_FREQ,
             Self::WiPhyFreqOffset(_) => NL80211_ATTR_WIPHY_FREQ_OFFSET,
@@ -127,6 +130,7 @@ impl Nla for Nl80211Attr {
                 buffer[..s.len()].copy_from_slice(s.as_bytes());
                 buffer[s.len()] = 0;
             }
+	    Self::WiPhyRetryShort(d) => buffer[0] = *d,
             Self::Use4Addr(d) => buffer[0] = *d as u8,
             Self::WiPhyChannelType(d) => {
                 NativeEndian::write_u32(buffer, (*d).into())
@@ -193,6 +197,11 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for Nl80211Attr {
                 );
                 Self::Generation(parse_u32(payload).context(err_msg)?)
             }
+	    NL80211_ATTR_WIPHY_RETRY_SHORT => {
+                let err_msg =
+                    format!("Invalid NL80211_ATTR_WIPHY_RETRY_SHORT value {:?}", payload);
+                Self::WiPhyRetryShort(parse_u8(payload).context(err_msg)?)
+	    }
             NL80211_ATTR_4ADDR => {
                 let err_msg =
                     format!("Invalid NL80211_ATTR_4ADDR value {:?}", payload);
