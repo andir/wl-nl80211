@@ -34,11 +34,13 @@ const NL80211_ATTR_WIPHY_RTS_THRESHOLD: u16 = 64;
 const NL80211_ATTR_4ADDR: u16 = 83;
 const NL80211_ATTR_WIPHY_COVERAGE_CLASS: u16 = 89;
 const NL80211_ATTR_WIPHY_TX_POWER_LEVEL: u16 = 98;
-const NL80211_ATTR_SUPPORT_IBSS_RSN : u16 = 104;
-const NL80211_ATTR_MAX_NUM_SCHED_SCAN_SSIDS : u16 = 123;
-const NL80211_ATTR_MAX_SCHED_SCAN_IE_LEN : u16 = 124;
-const NL80211_ATTR_SUPPORT_AP_UAPSD : u16 = 130;
-const NL80211_ATTR_MAX_MATCH_SETS : u16 = 133;
+const NL80211_ATTR_SUPPORT_IBSS_RSN: u16 = 104;
+const NL80211_ATTR_MAX_NUM_SCHED_SCAN_SSIDS: u16 = 123;
+const NL80211_ATTR_MAX_SCHED_SCAN_IE_LEN: u16 = 124;
+const NL80211_ATTR_SUPPORT_AP_UAPSD: u16 = 130;
+const NL80211_ATTR_MAX_MATCH_SETS: u16 = 133;
+const NL80211_ATTR_TDLS_SUPPORT: u16 = 139;
+const NL80211_ATTR_TDLS_EXTERNAL_SETUP: u16 = 140;
 const NL80211_ATTR_WDEV: u16 = 153;
 const NL80211_ATTR_CHANNEL_WIDTH: u16 = 159;
 const NL80211_ATTR_CENTER_FREQ1: u16 = 160;
@@ -75,6 +77,8 @@ pub enum Nl80211Attr {
     CipherSuites(Vec<Nl80211CipherSuite>),
     SupportAPUAPSD,
     MaxMatchSets(u8),
+    TDLSSupport,
+    TDLSExternalSetup,
     Wdev(u64),
     ChannelWidth(Nl80211ChannelWidth),
     CenterFreq1(u32),
@@ -111,13 +115,13 @@ impl Nla for Nl80211Attr {
             | Self::WiPhyRetryLong(_)
             | Self::WiPhyCoverageClass(_)
             | Self::MaxNumScanSSIDs(_)
-	    | Self::MaxNumSchedScanSSIDs(_)
+            | Self::MaxNumSchedScanSSIDs(_)
             | Self::MaxMatchSets(_) => 1,
-            Self::MaxScanIELen(_)
-            | Self::MaxSchedScanIELen(_) => 2,
-
-	    Self::SupportIBSSRSN
-	    | Self::SupportAPUAPSD => 0,
+            Self::MaxScanIELen(_) | Self::MaxSchedScanIELen(_) => 2,
+            Self::SupportIBSSRSN
+            | Self::SupportAPUAPSD
+            | Self::TDLSSupport
+            | Self::TDLSExternalSetup => 0,
             Self::TransmitQueueStats(ref nlas) => nlas.as_slice().buffer_len(),
             Self::MloLinks(ref links) => links.as_slice().buffer_len(),
             Self::Other(attr) => attr.value_len(),
@@ -143,11 +147,16 @@ impl Nla for Nl80211Attr {
             Self::WiPhyFreq(_) => NL80211_ATTR_WIPHY_FREQ,
             Self::WiPhyFreqOffset(_) => NL80211_ATTR_WIPHY_FREQ_OFFSET,
             Self::WiPhyChannelType(_) => NL80211_ATTR_WIPHY_CHANNEL_TYPE,
-	    Self::SupportIBSSRSN => NL80211_ATTR_SUPPORT_IBSS_RSN,
-	    Self::MaxNumSchedScanSSIDs(_) => NL80211_ATTR_MAX_NUM_SCHED_SCAN_SSIDS,
-	    Self::MaxSchedScanIELen(_) => NL80211_ATTR_MAX_SCHED_SCAN_IE_LEN,
-	    Self::SupportAPUAPSD => NL80211_ATTR_SUPPORT_AP_UAPSD,
-	    Self::MaxMatchSets(_) => NL80211_ATTR_MAX_MATCH_SETS,
+            Self::SupportIBSSRSN => NL80211_ATTR_SUPPORT_IBSS_RSN,
+            Self::MaxNumSchedScanSSIDs(_) => {
+                NL80211_ATTR_MAX_NUM_SCHED_SCAN_SSIDS
+            }
+            Self::MaxSchedScanIELen(_) => NL80211_ATTR_MAX_SCHED_SCAN_IE_LEN,
+            Self::CipherSuites(_) => NL80211_ATTR_CIPHER_SUITES,
+            Self::SupportAPUAPSD => NL80211_ATTR_SUPPORT_AP_UAPSD,
+            Self::MaxMatchSets(_) => NL80211_ATTR_MAX_MATCH_SETS,
+            Self::TDLSSupport => NL80211_ATTR_TDLS_SUPPORT,
+            Self::TDLSExternalSetup => NL80211_ATTR_TDLS_EXTERNAL_SETUP,
             Self::Wdev(_) => NL80211_ATTR_WDEV,
             Self::ChannelWidth(_) => NL80211_ATTR_CHANNEL_WIDTH,
             Self::CenterFreq1(_) => NL80211_ATTR_CENTER_FREQ1,
@@ -190,8 +199,10 @@ impl Nla for Nl80211Attr {
                 NativeEndian::write_u16(buffer, (*d).into())
             }
             Self::Use4Addr(d) => buffer[0] = *d as u8,
-	    Self::SupportIBSSRSN
-	    | Self::SupportAPUAPSD => {},
+            Self::SupportIBSSRSN
+            | Self::SupportAPUAPSD
+            | Self::TDLSSupport
+            | Self::TDLSExternalSetup => {}
             Self::WiPhyChannelType(d) => {
                 NativeEndian::write_u32(buffer, (*d).into())
             }
@@ -353,10 +364,10 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for Nl80211Attr {
                     "Invalid NL80211_ATTR_MAX_MATCH_SETS value {:?}",
                     payload
                 );
-                Self::MaxMatchSets(
-                    parse_u8(payload).context(err_msg)?.into(),
-                )
-	    },
+                Self::MaxMatchSets(parse_u8(payload).context(err_msg)?.into())
+            }
+            NL80211_ATTR_TDLS_SUPPORT => Self::TDLSSupport,
+            NL80211_ATTR_TDLS_EXTERNAL_SETUP => Self::TDLSExternalSetup,
             NL80211_ATTR_CHANNEL_WIDTH => {
                 let err_msg = format!(
                     "Invalid NL80211_ATTR_CHANNEL_WIDTH value {:?}",
