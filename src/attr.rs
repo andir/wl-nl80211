@@ -124,6 +124,7 @@ impl Nla for Nl80211Attr {
             | Self::TDLSExternalSetup => 0,
             Self::TransmitQueueStats(ref nlas) => nlas.as_slice().buffer_len(),
             Self::MloLinks(ref links) => links.as_slice().buffer_len(),
+            Self::CipherSuites(ref suites) => suites.len() * 4,
             Self::Other(attr) => attr.value_len(),
         }
     }
@@ -211,6 +212,14 @@ impl Nla for Nl80211Attr {
             }
             Self::TransmitQueueStats(ref nlas) => nlas.as_slice().emit(buffer),
             Self::MloLinks(ref links) => links.as_slice().emit(buffer),
+            Self::CipherSuites(ref suites) => {
+                for (suite, mut buffer) in
+                    suites.iter().zip(buffer.chunks_exact_mut(4))
+                {
+                    let value = (*suite).into();
+                    NativeEndian::write_u32(&mut buffer, value);
+                }
+            }
             Self::Other(ref attr) => attr.emit(buffer),
         }
     }
@@ -437,6 +446,14 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for Nl80211Attr {
                 }
                 Self::MloLinks(links)
             }
+            NL80211_ATTR_CIPHER_SUITES => {
+                let mut suites = vec![];
+                for bytes in payload.chunks_exact(4) {
+                    let value = parse_u32(bytes)?;
+                    suites.push(value.into())
+                }
+                Self::CipherSuites(suites)
+            }
             _ => Self::Other(
                 DefaultNla::parse(buf).context("invalid NLA (unknown kind)")?,
             ),
@@ -559,5 +576,75 @@ impl From<&Nl80211MloLink> for Vec<Nl80211MloLinkNla> {
             Nl80211MloLinkNla::Id(link.id),
             Nl80211MloLinkNla::Mac(link.mac),
         ]
+    }
+}
+
+pub const CIPHER_SUITE_WEP40: u32 = 0x000FAC01;
+pub const CIPHER_SUITE_TKIP: u32 = 0x000FAC02;
+pub const CIPHER_SUITE_CCMP: u32 = 0x000FAC04;
+pub const CIPHER_SUITE_WEP104: u32 = 0x000FAC05;
+pub const CIPHER_SUITE_CMAC: u32 = 0x000FAC06;
+pub const CIPHER_SUITE_GCMP128: u32 = 0x000FAC08;
+pub const CIPHER_SUITE_GCMP256: u32 = 0x000FAC09;
+pub const CIPHER_SUITE_CCMP256: u32 = 0x000FAC0A;
+pub const CIPHER_SUITE_GMAC128: u32 = 0x000FAC0b;
+pub const CIPHER_SUITE_GMAC256: u32 = 0x000FAC0c;
+pub const CIPHER_SUITE_CMAC256: u32 = 0x000FAC0d;
+pub const CIPHER_SUITE_SMS4: u32 = 0x00147201;
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum Nl80211CipherSuite {
+    WEP40,
+    TKIP,
+    CCMP,
+    WEP104,
+    CMAC,
+    GCMP128,
+    GCMP256,
+    CCMP256,
+    GMAC128,
+    GMAC256,
+    CMAC256,
+    SMS4,
+    Other(u32),
+}
+
+impl From<u32> for Nl80211CipherSuite {
+    fn from(value: u32) -> Self {
+        match value {
+            CIPHER_SUITE_WEP40 => Self::WEP40,
+            CIPHER_SUITE_TKIP => Self::TKIP,
+            CIPHER_SUITE_CCMP => Self::CCMP,
+            CIPHER_SUITE_WEP104 => Self::WEP104,
+            CIPHER_SUITE_CMAC => Self::CMAC,
+            CIPHER_SUITE_GCMP128 => Self::GCMP128,
+            CIPHER_SUITE_GCMP256 => Self::GCMP256,
+            CIPHER_SUITE_CCMP256 => Self::CCMP256,
+            CIPHER_SUITE_GMAC128 => Self::GMAC128,
+            CIPHER_SUITE_GMAC256 => Self::GMAC256,
+            CIPHER_SUITE_CMAC256 => Self::CMAC256,
+            CIPHER_SUITE_SMS4 => Self::SMS4,
+            x => Self::Other(x),
+        }
+    }
+}
+
+impl Into<u32> for Nl80211CipherSuite {
+    fn into(self) -> u32 {
+        match self {
+            Self::WEP40 => CIPHER_SUITE_WEP40,
+            Self::TKIP => CIPHER_SUITE_TKIP,
+            Self::CCMP => CIPHER_SUITE_CCMP,
+            Self::WEP104 => CIPHER_SUITE_WEP104,
+            Self::CMAC => CIPHER_SUITE_CMAC,
+            Self::GCMP128 => CIPHER_SUITE_GCMP128,
+            Self::GCMP256 => CIPHER_SUITE_GCMP256,
+            Self::CCMP256 => CIPHER_SUITE_CCMP256,
+            Self::GMAC128 => CIPHER_SUITE_GMAC128,
+            Self::GMAC256 => CIPHER_SUITE_GMAC256,
+            Self::CMAC256 => CIPHER_SUITE_GMAC256,
+            Self::SMS4 => CIPHER_SUITE_SMS4,
+            Self::Other(x) => x,
+        }
     }
 }
