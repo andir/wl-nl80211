@@ -32,6 +32,7 @@ const NL80211_ATTR_WIPHY_RETRY_LONG: u16 = 62;
 const NL80211_ATTR_WIPHY_FRAG_THRESHOLD: u16 = 63;
 const NL80211_ATTR_WIPHY_RTS_THRESHOLD: u16 = 64;
 const NL80211_ATTR_4ADDR: u16 = 83;
+const NL80211_ATTR_MAX_NUM_PMKIDS: u16 = 86;
 const NL80211_ATTR_WIPHY_COVERAGE_CLASS: u16 = 89;
 const NL80211_ATTR_WIPHY_TX_POWER_LEVEL: u16 = 98;
 const NL80211_ATTR_SUPPORT_IBSS_RSN: u16 = 104;
@@ -83,6 +84,7 @@ pub enum Nl80211Attr {
     ChannelWidth(Nl80211ChannelWidth),
     CenterFreq1(u32),
     CenterFreq2(u32),
+    MaxNumPMKIDs(u8),
     WiPhyCoverageClass(u8),
     WiPhyTxPowerLevel(u32),
     Ssid(String),
@@ -108,7 +110,9 @@ impl Nla for Nl80211Attr {
             | Self::WiPhyFragThreshold(_)
             | Self::WiPhyRTSThreshold(_) => 4,
             Self::Wdev(_) => 8,
-            Self::IfName(ref s) | Self::Ssid(ref s) | Self::WiPhyName(ref s) => s.len() + 1,
+            Self::IfName(ref s)
+            | Self::Ssid(ref s)
+            | Self::WiPhyName(ref s) => s.len() + 1,
             Self::Mac(_) => ETH_ALEN,
             Self::Use4Addr(_)
             | Self::WiPhyRetryShort(_)
@@ -116,7 +120,8 @@ impl Nla for Nl80211Attr {
             | Self::WiPhyCoverageClass(_)
             | Self::MaxNumScanSSIDs(_)
             | Self::MaxNumSchedScanSSIDs(_)
-            | Self::MaxMatchSets(_) => 1,
+            | Self::MaxMatchSets(_)
+            | Self::MaxNumPMKIDs(_) => 1,
             Self::MaxScanIELen(_) | Self::MaxSchedScanIELen(_) => 2,
             Self::SupportIBSSRSN
             | Self::SupportAPUAPSD
@@ -132,7 +137,7 @@ impl Nla for Nl80211Attr {
     fn kind(&self) -> u16 {
         match self {
             Self::WiPhy(_) => NL80211_ATTR_WIPHY,
-	    Self::WiPhyName(_) => NL80211_ATTR_WIPHY_NAME,
+            Self::WiPhyName(_) => NL80211_ATTR_WIPHY_NAME,
             Self::IfIndex(_) => NL80211_ATTR_IFINDEX,
             Self::IfName(_) => NL80211_ATTR_IFNAME,
             Self::IfType(_) => NL80211_ATTR_IFTYPE,
@@ -162,6 +167,7 @@ impl Nla for Nl80211Attr {
             Self::ChannelWidth(_) => NL80211_ATTR_CHANNEL_WIDTH,
             Self::CenterFreq1(_) => NL80211_ATTR_CENTER_FREQ1,
             Self::CenterFreq2(_) => NL80211_ATTR_CENTER_FREQ2,
+            Self::MaxNumPMKIDs(_) => NL80211_ATTR_MAX_NUM_PMKIDS,
             Self::WiPhyCoverageClass(_) => NL80211_ATTR_WIPHY_COVERAGE_CLASS,
             Self::WiPhyTxPowerLevel(_) => NL80211_ATTR_WIPHY_TX_POWER_LEVEL,
             Self::Ssid(_) => NL80211_ATTR_SSID,
@@ -186,7 +192,9 @@ impl Nla for Nl80211Attr {
             Self::Wdev(d) => NativeEndian::write_u64(buffer, *d),
             Self::IfType(d) => NativeEndian::write_u32(buffer, (*d).into()),
             Self::Mac(ref s) => buffer.copy_from_slice(s),
-            Self::IfName(ref s) | Self::Ssid(ref s) | Self::WiPhyName(ref s) => {
+            Self::IfName(ref s)
+            | Self::Ssid(ref s)
+            | Self::WiPhyName(ref s) => {
                 buffer[..s.len()].copy_from_slice(s.as_bytes());
                 buffer[s.len()] = 0;
             }
@@ -195,7 +203,8 @@ impl Nla for Nl80211Attr {
             | Self::WiPhyCoverageClass(d)
             | Self::MaxNumScanSSIDs(d)
             | Self::MaxNumSchedScanSSIDs(d)
-            | Self::MaxMatchSets(d) => buffer[0] = *d,
+            | Self::MaxMatchSets(d)
+            | Self::MaxNumPMKIDs(d) => buffer[0] = *d,
             Self::MaxScanIELen(d) | Self::MaxSchedScanIELen(d) => {
                 NativeEndian::write_u16(buffer, (*d).into())
             }
@@ -240,8 +249,10 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for Nl80211Attr {
                 Self::WiPhy(parse_u32(payload).context(err_msg)?)
             }
             NL80211_ATTR_WIPHY_NAME => {
-                let err_msg =
-                    format!("Invalid NL80211_ATTR_WIPHY_NAME value {:?}", payload);
+                let err_msg = format!(
+                    "Invalid NL80211_ATTR_WIPHY_NAME value {:?}",
+                    payload
+                );
                 Self::WiPhyName(parse_string(payload).context(err_msg)?)
             }
             NL80211_ATTR_IFNAME => {
@@ -397,6 +408,13 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for Nl80211Attr {
                     payload
                 );
                 Self::CenterFreq2(parse_u32(payload).context(err_msg)?)
+            }
+            NL80211_ATTR_MAX_NUM_PMKIDS => {
+                let err_msg = format!(
+                    "Invalid NL80211_ATTR_MAX_NUM_PKMIDS value {:?}",
+                    payload
+                );
+                Self::MaxNumPMKIDs(parse_u8(payload).context(err_msg)?)
             }
             NL80211_ATTR_WIPHY_COVERAGE_CLASS => {
                 let err_msg = format!(
