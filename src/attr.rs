@@ -37,7 +37,10 @@ const NL80211_ATTR_WIPHY_COVERAGE_CLASS: u16 = 89;
 const NL80211_ATTR_WIPHY_TX_POWER_LEVEL: u16 = 98;
 const NL80211_ATTR_CONTROL_PORT_ETHERTYPE: u16 = 102;
 const NL80211_ATTR_SUPPORT_IBSS_RSN: u16 = 104;
+const NL80211_ATTR_WIPHY_ANTENNA_TX: u16 = 105;
+const NL80211_ATTR_WIPHY_ANTENNA_RX: u16 = 106;
 const NL80211_ATTR_WIPHY_ANTENNA_AVAIL_TX: u16 = 113;
+const NL80211_ATTR_WIPHY_ANTENNA_AVAIL_RX: u16 = 114;
 const NL80211_ATTR_MAX_NUM_SCHED_SCAN_SSIDS: u16 = 123;
 const NL80211_ATTR_MAX_SCHED_SCAN_IE_LEN: u16 = 124;
 const NL80211_ATTR_SUPPORT_AP_UAPSD: u16 = 130;
@@ -76,7 +79,10 @@ pub enum Nl80211Attr {
     WiPhyChannelType(Nl80211WiPhyChannelType),
     ControlPortEtherType,
     SupportIBSSRSN,
+    WiPhyAntennaTX(u32),
+    WiPhyAntennaRX(u32),
     WiPhyAntennaAvailTX(u32),
+    WiPhyAntennaAvailRX(u32),
     MaxNumSchedScanSSIDs(u8),
     MaxSchedScanIELen(u16),
     CipherSuites(Vec<Nl80211CipherSuite>),
@@ -113,7 +119,10 @@ impl Nla for Nl80211Attr {
             | Self::ChannelWidth(_)
             | Self::WiPhyFragThreshold(_)
             | Self::WiPhyRTSThreshold(_)
-            | Self::WiPhyAntennaAvailTX(_) => 4,
+            | Self::WiPhyAntennaAvailTX(_)
+            | Self::WiPhyAntennaAvailRX(_)
+            | Self::WiPhyAntennaTX(_)
+            | Self::WiPhyAntennaRX(_) => 4,
             Self::Wdev(_) => 8,
             Self::IfName(ref s)
             | Self::Ssid(ref s)
@@ -161,7 +170,10 @@ impl Nla for Nl80211Attr {
             Self::WiPhyChannelType(_) => NL80211_ATTR_WIPHY_CHANNEL_TYPE,
             Self::ControlPortEtherType => NL80211_ATTR_CONTROL_PORT_ETHERTYPE,
             Self::SupportIBSSRSN => NL80211_ATTR_SUPPORT_IBSS_RSN,
+            Self::WiPhyAntennaTX(_) => NL80211_ATTR_WIPHY_ANTENNA_TX,
+            Self::WiPhyAntennaRX(_) => NL80211_ATTR_WIPHY_ANTENNA_RX,
             Self::WiPhyAntennaAvailTX(_) => NL80211_ATTR_WIPHY_ANTENNA_AVAIL_TX,
+            Self::WiPhyAntennaAvailRX(_) => NL80211_ATTR_WIPHY_ANTENNA_AVAIL_RX,
             Self::MaxNumSchedScanSSIDs(_) => {
                 NL80211_ATTR_MAX_NUM_SCHED_SCAN_SSIDS
             }
@@ -197,9 +209,10 @@ impl Nla for Nl80211Attr {
             | Self::WiPhyTxPowerLevel(d)
             | Self::WiPhyFragThreshold(d)
             | Self::WiPhyRTSThreshold(d)
-            | Self::WiPhyAntennaAvailTX(d) => {
-                NativeEndian::write_u32(buffer, *d)
-            }
+            | Self::WiPhyAntennaAvailTX(d)
+            | Self::WiPhyAntennaAvailRX(d)
+            | Self::WiPhyAntennaTX(d)
+            | Self::WiPhyAntennaRX(d) => NativeEndian::write_u32(buffer, *d),
             Self::Wdev(d) => NativeEndian::write_u64(buffer, *d),
             Self::IfType(d) => NativeEndian::write_u32(buffer, (*d).into()),
             Self::Mac(ref s) => buffer.copy_from_slice(s),
@@ -293,12 +306,33 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for Nl80211Attr {
                 )
                 .into());
             }),
+            NL80211_ATTR_WIPHY_ANTENNA_TX => {
+                let err_msg = format!(
+                    "Invalid NL80211_ATTR_WIPHY_ANTENNA_TX value {:?}",
+                    payload
+                );
+                Self::WiPhyAntennaTX(parse_u32(payload).context(err_msg)?)
+            }
+            NL80211_ATTR_WIPHY_ANTENNA_RX => {
+                let err_msg = format!(
+                    "Invalid NL80211_ATTR_WIPHY_ANTENNA_RX value {:?}",
+                    payload
+                );
+                Self::WiPhyAntennaRX(parse_u32(payload).context(err_msg)?)
+            }
             NL80211_ATTR_WIPHY_ANTENNA_AVAIL_TX => {
                 let err_msg = format!(
                     "Invalid NL80211_ATTR_WIPHY_ANTENNA_AVAIL_TX value {:?}",
                     payload
                 );
                 Self::WiPhyAntennaAvailTX(parse_u32(payload).context(err_msg)?)
+            }
+            NL80211_ATTR_WIPHY_ANTENNA_AVAIL_RX => {
+                let err_msg = format!(
+                    "Invalid NL80211_ATTR_WIPHY_ANTENNA_AVAIL_RX value {:?}",
+                    payload
+                );
+                Self::WiPhyAntennaAvailRX(parse_u32(payload).context(err_msg)?)
             }
             NL80211_ATTR_MAX_NUM_SCAN_SSIDS => {
                 let err_msg = format!(
