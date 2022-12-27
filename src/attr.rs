@@ -35,6 +35,7 @@ const NL80211_ATTR_4ADDR: u16 = 83;
 const NL80211_ATTR_MAX_NUM_PMKIDS: u16 = 86;
 const NL80211_ATTR_WIPHY_COVERAGE_CLASS: u16 = 89;
 const NL80211_ATTR_WIPHY_TX_POWER_LEVEL: u16 = 98;
+const NL80211_ATTR_CONTROL_PORT_ETHERTYPE: u16 = 102;
 const NL80211_ATTR_SUPPORT_IBSS_RSN: u16 = 104;
 const NL80211_ATTR_MAX_NUM_SCHED_SCAN_SSIDS: u16 = 123;
 const NL80211_ATTR_MAX_SCHED_SCAN_IE_LEN: u16 = 124;
@@ -72,6 +73,7 @@ pub enum Nl80211Attr {
     WiPhyFreq(u32),
     WiPhyFreqOffset(u32),
     WiPhyChannelType(Nl80211WiPhyChannelType),
+    ControlPortEtherType,
     SupportIBSSRSN,
     MaxNumSchedScanSSIDs(u8),
     MaxSchedScanIELen(u16),
@@ -126,7 +128,8 @@ impl Nla for Nl80211Attr {
             Self::SupportIBSSRSN
             | Self::SupportAPUAPSD
             | Self::TDLSSupport
-            | Self::TDLSExternalSetup => 0,
+            | Self::TDLSExternalSetup
+            | Self::ControlPortEtherType => 0,
             Self::TransmitQueueStats(ref nlas) => nlas.as_slice().buffer_len(),
             Self::MloLinks(ref links) => links.as_slice().buffer_len(),
             Self::CipherSuites(ref suites) => suites.len() * 4,
@@ -153,6 +156,7 @@ impl Nla for Nl80211Attr {
             Self::WiPhyFreq(_) => NL80211_ATTR_WIPHY_FREQ,
             Self::WiPhyFreqOffset(_) => NL80211_ATTR_WIPHY_FREQ_OFFSET,
             Self::WiPhyChannelType(_) => NL80211_ATTR_WIPHY_CHANNEL_TYPE,
+            Self::ControlPortEtherType => NL80211_ATTR_CONTROL_PORT_ETHERTYPE,
             Self::SupportIBSSRSN => NL80211_ATTR_SUPPORT_IBSS_RSN,
             Self::MaxNumSchedScanSSIDs(_) => {
                 NL80211_ATTR_MAX_NUM_SCHED_SCAN_SSIDS
@@ -212,7 +216,8 @@ impl Nla for Nl80211Attr {
             Self::SupportIBSSRSN
             | Self::SupportAPUAPSD
             | Self::TDLSSupport
-            | Self::TDLSExternalSetup => {}
+            | Self::TDLSExternalSetup
+            | Self::ControlPortEtherType => {}
             Self::WiPhyChannelType(d) => {
                 NativeEndian::write_u32(buffer, (*d).into())
             }
@@ -359,6 +364,7 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for Nl80211Attr {
                     parse_u32(payload).context(err_msg)?.into(),
                 )
             }
+            NL80211_ATTR_CONTROL_PORT_ETHERTYPE => Self::ControlPortEtherType,
             NL80211_ATTR_SUPPORT_IBSS_RSN => Self::SupportIBSSRSN,
             NL80211_ATTR_MAX_NUM_SCHED_SCAN_SSIDS => {
                 let err_msg = format!(
