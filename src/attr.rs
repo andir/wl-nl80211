@@ -20,6 +20,7 @@ const NL80211_ATTR_IFINDEX: u16 = 3;
 const NL80211_ATTR_IFNAME: u16 = 4;
 const NL80211_ATTR_IFTYPE: u16 = 5;
 const NL80211_ATTR_MAC: u16 = 6;
+const NL80211_ATTR_SUPPORTED_IFTYPES: u16 = 32;
 const NL80211_ATTR_WIPHY_FREQ: u16 = 38;
 const NL80211_ATTR_WIPHY_CHANNEL_TYPE: u16 = 39;
 const NL80211_ATTR_MAX_NUM_SCAN_SSIDS: u16 = 43;
@@ -66,6 +67,7 @@ pub enum Nl80211Attr {
     IfName(String),
     IfType(Nl80211InterfaceType),
     Mac([u8; ETH_ALEN]),
+    SupportedIfTypes(Vec<Nl80211InterfaceType>),
     MaxNumScanSSIDs(u8),
     Generation(u32),
     MaxScanIELen(u16),
@@ -145,6 +147,7 @@ impl Nla for Nl80211Attr {
             Self::TransmitQueueStats(ref nlas) => nlas.as_slice().buffer_len(),
             Self::MloLinks(ref links) => links.as_slice().buffer_len(),
             Self::CipherSuites(ref suites) => suites.len() * 4,
+            Self::SupportedIfTypes(ref types) => types.len() * 4,
             Self::Other(attr) => attr.value_len(),
         }
     }
@@ -193,6 +196,7 @@ impl Nla for Nl80211Attr {
             Self::Ssid(_) => NL80211_ATTR_SSID,
             Self::TransmitQueueStats(_) => NL80211_ATTR_TXQ_STATS,
             Self::MloLinks(_) => NL80211_ATTR_MLO_LINKS,
+            Self::SupportedIfTypes(_) => NL80211_ATTR_SUPPORTED_IFTYPES,
             Self::Other(attr) => attr.kind(),
         }
     }
@@ -252,6 +256,14 @@ impl Nla for Nl80211Attr {
                 {
                     let value = (*suite).into();
                     NativeEndian::write_u32(&mut buffer, value);
+                }
+            }
+            Self::SupportedIfTypes(ref types) => {
+                for (iftype, mut buf) in
+                    types.iter().zip(buffer.chunks_exact_mut(4))
+                {
+                    let value: u32 = u32::from(*iftype);
+                    NativeEndian::write_u32(&mut buf, value);
                 }
             }
             Self::Other(ref attr) => attr.emit(buffer),
@@ -525,6 +537,16 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Parseable<NlaBuffer<&'a T>> for Nl80211Attr {
                     suites.push(value.into())
                 }
                 Self::CipherSuites(suites)
+            }
+            NL80211_ATTR_SUPPORTED_IFTYPES => {
+                let iftypes = NlasIterator::new(payload)
+                    .map(|nla| {
+                        let kind = nla?.kind();
+                        let nla = Nl80211InterfaceType::from(kind as u32);
+                        Ok(nla)
+                    })
+                    .collect::<Result<Vec<_>, DecodeError>>()?;
+                Self::SupportedIfTypes(iftypes)
             }
             _ => Self::Other(
                 DefaultNla::parse(buf).context("invalid NLA (unknown kind)")?,
